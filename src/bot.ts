@@ -8,7 +8,7 @@ import makeWASocket, {
 import pino from 'pino';
 import QRCode from 'qrcode';
 import qrcodeTerminal from 'qrcode-terminal';
-import { assumedBrazilian, findMedia, findMessageLink, formatTime, HELP_TEXT, messageText, parseClip, parseCommand, parseFit, allowedNumberWarnings, phoneVariants, type Command } from './commands.js';
+import { assumedBrazilian, findMedia, findMessageLink, HELP_TEXT, messageText, parseClip, parseCommand, parseFit, allowedNumberWarnings, phoneVariants, type Command } from './commands.js';
 import { createAnimatedSticker, createStaticSticker, MAX_INPUT_BYTES, MAX_SECONDS, type StickerResult } from './convert.js';
 import { checkTools, ConversionError, ToolError } from './ffmpeg.js';
 import { downloadFromLink, LinkError, PLATFORM_NAME, youtubeStart, type FoundLink, type LinkClip } from './link-download.js';
@@ -237,16 +237,6 @@ async function trySoundSticker(message: WAMessage, media: { gif: boolean }, resu
 async function linkDownload(link: FoundLink, maxBytes: number, clip: LinkClip) {
   return downloadFromLink(link, { maxBytes, clip, log: config.debug ? m => log(`[link] ${m}`) : undefined });
 }
-
-/** Aviso sobre o trecho usado ("Usei de 0:42 a 0:52."), quando não foi o vídeo inteiro desde o começo. */
-function clipNotice(result: StickerResult, startOffset: number, explicit: boolean): string | undefined {
-  const start = startOffset + (result.startSeconds ?? 0);
-  const end = start + (result.clipSeconds ?? result.durationMs / 1000);
-  if (explicit || start > 0) return `Usei o trecho de ${formatTime(start)} a ${formatTime(end)}.`;
-  if (result.trimmed) return 'Usei só os primeiros 10 segundos. Para outro trecho, mande por exemplo *!som 0:42*.';
-  return undefined;
-}
-
 async function handle(command: Command, text: string, message: WAMessage): Promise<void> {
   if (command === 'ajuda') { await reply(message, HELP_TEXT); return; }
   const media = findMedia(message);
@@ -299,8 +289,6 @@ async function handle(command: Command, text: string, message: WAMessage): Promi
       onStep: config.debug ? (step, ms) => steps.push(`${step} ${Math.round(ms)}ms`) : undefined,
     });
     const notices: string[] = [];
-    const clipText = clipNotice(result, startOffset, !!parsedClip);
-    if (clipText) notices.push(clipText);
 
     let withSound = false;
     if (command === 'som') {

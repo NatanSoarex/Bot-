@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
-import { availableParallelism, tmpdir } from 'node:os';
+import { availableParallelism, tmpdir, totalmem } from 'node:os';
 import { join } from 'node:path';
 
 /** Erro com mensagem pronta para mostrar ao usuário no WhatsApp. */
@@ -42,8 +42,13 @@ export async function mapLimit<T, R>(items: T[], limit: number, work: (item: T, 
   return results;
 }
 
-/** Quantos processos do FFmpeg rodar em paralelo (o encoder de WebP usa um núcleo cada). */
-export const PARALLEL = Math.max(1, Math.min(4, availableParallelism()));
+/** Quantos processos do FFmpeg rodar em paralelo (o encoder de WebP usa um núcleo cada). Evita estouro de RAM em planos de 512 MB. */
+const envParallel = Number(process.env.FFMPEG_PARALLEL || 0);
+export const PARALLEL = envParallel > 0
+  ? Math.max(1, Math.min(4, envParallel))
+  : totalmem() < 1_200_000_000
+    ? 1
+    : Math.max(1, Math.min(4, availableParallelism()));
 
 /** Cria uma pasta temporária, entrega para `work` e apaga tudo no final. */
 export async function withTempDir<T>(work: (dir: string) => Promise<T>): Promise<T> {
