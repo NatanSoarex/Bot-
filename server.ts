@@ -188,8 +188,9 @@ app.post(
       }
       const fit: FitMode = req.query.fit === 'inteiro' ? 'inteiro' : 'cortar';
       const withAudio = req.query.withAudio !== 'false';
-      const isImage = req.query.kind === 'image' || String(req.headers['content-type'] ?? '').startsWith('image/');
-      const isGif = String(req.headers['content-type'] ?? '') === 'image/gif';
+      const mime = typeof req.query.mime === 'string' ? req.query.mime : String(req.headers['content-type'] ?? '');
+      const isImage = req.query.kind === 'image' || mime.startsWith('image/');
+      const isGif = mime === 'image/gif';
       const clipText = typeof req.query.clip === 'string' ? req.query.clip.trim() : '';
       const parsedClip = clipText ? parseClip(`!som ${clipText}`) : undefined;
       if (parsedClip && 'error' in parsedClip) {
@@ -251,6 +252,19 @@ app.post('/api/convert/sample', express.json(), async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
+});
+
+app.use('/api', (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const status = (err as { status?: number; statusCode?: number })?.status
+    ?? (err as { statusCode?: number })?.statusCode
+    ?? 500;
+  const type = (err as { type?: string })?.type;
+  if (status === 413 || type === 'entity.too.large') {
+    res.status(413).json({ error: 'O arquivo passa de 16 MB. Corte o vídeo ou escolha um menor.' });
+    return;
+  }
+  const message = err instanceof Error ? err.message : 'Erro interno no servidor.';
+  res.status(status).json({ error: message });
 });
 
 async function main(): Promise<void> {

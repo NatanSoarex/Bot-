@@ -102,6 +102,25 @@ function base64ToBlobUrl(base64: string, mime: string): string {
   return URL.createObjectURL(new Blob([bytes], { type: mime }));
 }
 
+async function readJsonSafe<T>(res: Response): Promise<{ ok: boolean; data?: T; error?: string }> {
+  const text = await res.text();
+  if (!text) {
+    return { ok: false, error: res.ok ? 'Resposta vazia do servidor.' : `Erro HTTP ${res.status}.` };
+  }
+  try {
+    const parsed = JSON.parse(text) as T & { error?: string };
+    if (!res.ok) {
+      return { ok: false, error: parsed?.error || `Erro HTTP ${res.status}.` };
+    }
+    return { ok: true, data: parsed };
+  } catch {
+    if (res.status === 413) {
+      return { ok: false, error: 'O arquivo passa de 16 MB. Corte o vídeo ou escolha um menor.' };
+    }
+    return { ok: false, error: `Resposta inesperada do servidor (HTTP ${res.status}).` };
+  }
+}
+
 export default function App() {
   const [snapshot, setSnapshot] = useState<BotSnapshot | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -137,8 +156,9 @@ export default function App() {
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/bot/status', { cache: 'no-store' });
-      if (!res.ok) return;
-      const data = (await res.json()) as BotSnapshot;
+      const parsed = await readJsonSafe<BotSnapshot>(res);
+      if (!parsed.ok || !parsed.data) return;
+      const data = parsed.data;
       setSnapshot(data);
       if (!configSynced) {
         setAllowedNumbers(data.config.allowedNumbers);
@@ -192,9 +212,9 @@ export default function App() {
         headers: body ? { 'Content-Type': 'application/json' } : undefined,
         body: body ? JSON.stringify(body) : undefined,
       });
-      if (res.ok) {
-        const data = (await res.json()) as BotSnapshot;
-        setSnapshot(data);
+      const parsed = await readJsonSafe<BotSnapshot>(res);
+      if (parsed.ok && parsed.data) {
+        setSnapshot(parsed.data);
       }
     } finally {
       setActionBusy(false);
@@ -224,14 +244,13 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: pairPhoneInput }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setPairError(data.error || 'Não foi possível gerar o código.');
+      const parsed = await readJsonSafe<BotSnapshot>(res);
+      if (!parsed.ok || !parsed.data) {
+        setPairError(parsed.error || 'Não foi possível gerar o código.');
         return;
       }
-      const snap = data as BotSnapshot;
-      setSnapshot(snap);
-      setPairingNumber(snap.config.pairingNumber);
+      setSnapshot(parsed.data);
+      setPairingNumber(parsed.data.config.pairingNumber);
     } catch (error) {
       setPairError(error instanceof Error ? error.message : 'Erro ao solicitar código.');
     } finally {
@@ -286,6 +305,11 @@ export default function App() {
           setConverting(false);
           return;
         }
+        if (selectedFile.size > 16 * 1024 * 1024) {
+          setConvertError('Esse arquivo passa de 16 MB. Corte o vídeo ou escolha um menor.');
+          setConverting(false);
+          return;
+        }
         const params = new URLSearchParams({
           fit: fitMode,
           withAudio: String(withAudio),
@@ -295,22 +319,23 @@ export default function App() {
         if (clipRange.trim()) params.set('clip', clipRange.trim());
         const kind = selectedFile.type.startsWith('image/') && selectedFile.type !== 'image/gif' ? 'image' : 'video';
         params.set('kind', kind);
+        if (selectedFile.type) params.set('mime', selectedFile.type);
 
         res = await fetch(`/api/convert/file?${params.toString()}`, {
           method: 'POST',
           headers: {
-            'Content-Type': selectedFile.type || 'application/octet-stream',
+            'Content-Type': 'application/octet-stream',
           },
           body: selectedFile,
         });
       }
 
-      const data = await res.json();
-      if (!res.ok) {
-        setConvertError(data.error || 'Falha na conversão.');
+      const parsed = await readJsonSafe<ConvertResult>(res);
+      if (!parsed.ok || !parsed.data) {
+        setConvertError(parsed.error || 'Falha na conversão.');
         return;
       }
-      setConvertResult(data as ConvertResult);
+      setConvertResult(parsed.data);
     } catch (error) {
       setConvertError(error instanceof Error ? error.message : 'Erro ao converter.');
     } finally {
@@ -790,7 +815,7 @@ export default function App() {
             ) : (
               <div>
                 <input
-                  type="url"
+                  type="text"
                   value={linkUrl}
                   onChange={e => setLinkUrl(e.target.value)}
                   placeholder="https://www.youtube.com/watch?v=... ou TikTok / Instagram Reel"
