@@ -1,6 +1,6 @@
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { ConversionError, ffmpeg, mapLimit, PARALLEL, probe, ToolError, withTempDir } from './ffmpeg.js';
+import { ConversionError, ffmpeg, IS_LOW_RESOURCE, PARALLEL, probe, ToolError, withTempDir } from './ffmpeg.js';
 import { addStickerMetadata, inspectWebp, type StickerMetadata } from './webp.js';
 
 /** Limites das figurinhas do WhatsApp (repositório oficial WhatsApp/stickers). */
@@ -112,8 +112,9 @@ function stepFilter(fit: FitMode, [fps, , detail]: readonly [number, number, num
 }
 
 async function encodeWebp(source: string, output: string, filter: string, quality: number, timeoutMs = 120_000): Promise<number> {
+  const compression = process.env.WEBP_COMPRESSION_LEVEL ?? (IS_LOW_RESOURCE ? '2' : '4');
   await ffmpeg(['-loglevel', 'error', '-i', source, '-an', '-vf', filter,
-    '-c:v', 'libwebp_anim', '-lossless', '0', '-quality', String(quality), '-compression_level', '4',
+    '-c:v', 'libwebp_anim', '-lossless', '0', '-quality', String(quality), '-compression_level', compression,
     '-loop', '0', '-f', 'webp', output], timeoutMs);
   return (await stat(output)).size;
 }
@@ -224,6 +225,16 @@ export async function createAnimatedSticker(input: Buffer, options: StickerOptio
       //   1ª: degraus 1 e 4. Se o 1 cabe, pronto (vídeos leves param aqui).
       //   2ª: degraus 2 e 3 (se o 4 cabe) ou 5 e 6 (se não); o 7 é o último recurso.
       first = await timed('estimar', async () => {
+        if (PARALLEL <= 1) {
+          if (await fitsEstimate(0)) return 0;
+          const middle = await fitsEstimate(3);
+          if (middle) {
+            if (await fitsEstimate(1)) return 1;
+            return (await fitsEstimate(2)) ? 2 : 3;
+          }
+          if (await fitsEstimate(4)) return 4;
+          return (await fitsEstimate(5)) ? 5 : 6;
+        }
         const check = (steps: number[]) => Promise.all(steps.map(fitsEstimate));
         const [top, middle] = await check([0, 3]);
         if (top) return 0;

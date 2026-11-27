@@ -43,10 +43,11 @@ export async function mapLimit<T, R>(items: T[], limit: number, work: (item: T, 
 }
 
 /** Quantos processos do FFmpeg rodar em paralelo (o encoder de WebP usa um núcleo cada). Evita estouro de RAM em planos de 512 MB. */
+export const IS_LOW_RESOURCE = totalmem() < 1_200_000_000;
 const envParallel = Number(process.env.FFMPEG_PARALLEL || 0);
 export const PARALLEL = envParallel > 0
   ? Math.max(1, Math.min(4, envParallel))
-  : totalmem() < 1_200_000_000
+  : IS_LOW_RESOURCE
     ? 1
     : Math.max(1, Math.min(4, availableParallelism()));
 
