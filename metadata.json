@@ -1,0 +1,6 @@
+{
+  "name": "Bot-fig — Figurinhas com Som",
+  "description": "Bot de WhatsApp que transforma vídeos, GIFs, fotos e links do YouTube, TikTok e Instagram em figurinhas animadas com som.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

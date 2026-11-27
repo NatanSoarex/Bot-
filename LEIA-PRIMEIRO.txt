@@ -1,0 +1,34 @@
+BOT DE FIGURINHA COM SOM
+
+Precisa de: computador com Windows e internet, ligado enquanto usa.
+
+1. Extraia o ZIP inteiro em uma pasta.
+2. Dê dois cliques em INICIAR-WINDOWS.bat.
+   Ele instala o Node.js e o FFmpeg se faltarem. Se o Windows avisar,
+   clique em "Mais informações" > "Executar assim mesmo".
+   Se disser que não achou o FFmpeg, feche e abra o arquivo de novo.
+3. Escolha o nome que vai aparecer nas figurinhas.
+4. No celular: WhatsApp > Aparelhos conectados > Conectar um aparelho,
+   e escaneie o QR code que abrir no navegador.
+5. Na conversa com você mesmo, mande um vídeo com a legenda  !som
+   (para escolher o trecho:  !som 0:05-0:10).
+6. Toque na figurinha recebida e adicione aos favoritos.
+
+CONECTAR COM CÓDIGO (sem QR)
+Depois do primeiro início, feche a janela, abra o arquivo .env no Bloco
+de Notas, preencha NUMERO_CONEXAO=55DDDNUMERO, salve e abra o bot de novo.
+Digite no celular o código que aparecer na janela preta, em:
+Aparelhos conectados > Conectar um aparelho > Conectar com número de telefone.
+Se der erro, feche, apague a pasta "sessao" e tente de novo.
+
+ATENÇÃO
+- É um cliente não oficial. O WhatsApp pode bloquear o número.
+  Se puder, use um número separado e libere o seu em ALLOWED_NUMBERS
+  no arquivo .env.
+- A pasta "sessao" dá acesso à sua conta. Nunca envie para ninguém.
+- Para parar, feche a janela preta. Para desconectar de vez, remova o
+  aparelho em "Aparelhos conectados".
+- Nesta cópia, ALLOWED_NUMBERS=0 faz o bot atender só você.
+
+Código original (licença MIT), de Gabriel Fonseca Silva:
+https://github.com/coelhobugado/whatsapp-figurinhas-com-som
