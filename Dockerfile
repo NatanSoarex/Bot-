@@ -4,22 +4,20 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ffmpeg ca-certificates git \
   && rm -rf /var/lib/apt/lists/*
 
-# Usuário UID 1000 exigido pelo Hugging Face Spaces
-RUN useradd -m -u 1000 user
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm install
 
 COPY . .
-RUN npm run build && mkdir -p /app/sessao /app/saida && chown -R user:user /app
+RUN npm run build && mkdir -p /app/sessao /app/saida && chown -R node:node /app
 
-USER user
+USER node
 
 ENV NODE_ENV=production
-ENV PORT=7860
+ENV PORT=3000
 ENV AUTH_DIR=/app/sessao
 
-EXPOSE 7860
+EXPOSE 3000
 
 CMD ["npm", "start"]
